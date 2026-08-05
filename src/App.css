@@ -541,9 +541,9 @@ button:active:not(:disabled) {
   font-size: 21px;
 }
 
-/* NAMEPLATE PLACEHOLDER */
+/* NAMEPLATE PHOTO */
 
-.nameplate-placeholder {
+.nameplate-uploader {
   display: flex;
   align-items: center;
   gap: 13px;
@@ -554,41 +554,105 @@ button:active:not(:disabled) {
   background: #f8fafc;
 }
 
-.nameplate-placeholder-icon {
+.nameplate-empty,
+.nameplate-preview {
   display: grid;
-  width: 48px;
-  height: 48px;
+  width: 104px;
+  height: 78px;
   place-items: center;
   flex-shrink: 0;
   border-radius: 9px;
   background: #fdf6ea;
+  overflow: hidden;
+}
+
+.nameplate-empty {
   font-size: 23px;
 }
 
-.nameplate-placeholder > div:nth-child(2) {
+.nameplate-preview {
+  position: relative;
+  padding: 0;
+  border: 0;
+  cursor: zoom-in;
+}
+
+.nameplate-preview img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  background: #e9eef3;
+}
+
+.nameplate-preview span {
+  position: absolute;
+  inset: auto 0 0;
+  padding: 4px;
+  background: rgb(13 27 42 / 78%);
+  color: white;
+  font-size: 9px;
+  font-weight: 800;
+}
+
+.nameplate-copy {
   min-width: 0;
   flex: 1;
 }
 
-.nameplate-placeholder strong {
+.nameplate-copy strong {
   display: block;
 }
 
-.nameplate-placeholder p {
+.nameplate-copy p {
   margin: 4px 0 0;
   color: #718195;
   font-size: 13px;
   line-height: 1.45;
 }
 
-.nameplate-placeholder button {
+.nameplate-copy small {
+  display: block;
+  margin-top: 7px;
+  color: #4e6174;
+}
+
+.nameplate-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  flex-shrink: 0;
+}
+
+.nameplate-upload-button,
+.nameplate-remove-button {
   padding: 10px 14px;
   border: 0;
   border-radius: 7px;
-  background: #d9e0e8;
-  color: #8190a0;
   font-weight: 800;
-  cursor: not-allowed;
+  text-align: center;
+  cursor: pointer;
+}
+
+.nameplate-upload-button {
+  background: #0d1b2a;
+  color: white;
+}
+
+.nameplate-upload-button:hover {
+  background: #1b334b;
+}
+
+.nameplate-upload-button input {
+  display: none;
+}
+
+.nameplate-remove-button {
+  background: #f2e4e4;
+  color: #8f2f2f;
+}
+
+.nameplate-remove-button:hover {
+  background: #ead1d1;
 }
 
 /* TEXT AREAS */
@@ -684,13 +748,22 @@ button:active:not(:disabled) {
     padding: 17px;
   }
 
-  .nameplate-placeholder {
+  .nameplate-uploader {
     align-items: flex-start;
     flex-wrap: wrap;
   }
 
-  .nameplate-placeholder button {
+  .nameplate-copy {
+    min-width: calc(100% - 117px);
+  }
+
+  .nameplate-actions {
     width: 100%;
+    flex-direction: row;
+  }
+
+  .nameplate-actions > * {
+    flex: 1;
   }
 
   .feature-grid {

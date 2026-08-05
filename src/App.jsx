@@ -1,6 +1,8 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import "./App.css";
+import NameplatePhoto from "./NameplatePhoto";
 import UnitPhotos from "./UnitPhotos";
+import { deletePhotosForUnit } from "./photoDb";
 
 const today = new Date().toISOString().split("T")[0];
 
@@ -33,8 +35,33 @@ const equipmentTypes = [
   "Other",
 ];
 
+function loadProjects() {
+  try {
+    const savedProjects = localStorage.getItem("meher-projects");
+
+    if (!savedProjects) {
+      return [];
+    }
+
+    return JSON.parse(savedProjects).map((project) => ({
+      ...project,
+      units: (project.units || []).map((unit) => ({
+        location: "",
+        supplyVoltage: "",
+        workSummary: "",
+        notes: "",
+        photos: [],
+        ...unit,
+      })),
+    }));
+  } catch (error) {
+    console.error("Could not load projects:", error);
+    return [];
+  }
+}
+
 function App() {
-  const [projects, setProjects] = useState([]);
+  const [projects, setProjects] = useState(loadProjects);
   const [showProjectForm, setShowProjectForm] = useState(false);
   const [showUnitForm, setShowUnitForm] = useState(false);
 
@@ -43,34 +70,6 @@ function App() {
 
   const [projectForm, setProjectForm] = useState(emptyProjectForm);
   const [unitForm, setUnitForm] = useState(emptyUnitForm);
-
-  useEffect(() => {
-    try {
-      const savedProjects = localStorage.getItem("meher-projects");
-
-      if (!savedProjects) {
-        return;
-      }
-
-      const parsedProjects = JSON.parse(savedProjects);
-
-      const repairedProjects = parsedProjects.map((project) => ({
-        ...project,
-        units: (project.units || []).map((unit) => ({
-          location: "",
-          supplyVoltage: "",
-          workSummary: "",
-          notes: "",
-          photos: [],
-          ...unit,
-        })),
-      }));
-
-      setProjects(repairedProjects);
-    } catch (error) {
-      console.error("Could not load projects:", error);
-    }
-  }, []);
 
   function saveProjects(updatedProjects) {
     setProjects(updatedProjects);
@@ -186,7 +185,7 @@ function App() {
     saveProjects(updatedProjects);
   }
 
-  function deleteUnit(unitId) {
+  async function deleteUnit(unitId) {
     const confirmed = window.confirm(
       "Remove this equipment unit from the project?",
     );
@@ -209,6 +208,12 @@ function App() {
     });
 
     saveProjects(updatedProjects);
+
+    try {
+      await deletePhotosForUnit(unitId);
+    } catch (error) {
+      console.error("Could not remove unit photos:", error);
+    }
 
     if (selectedUnitId === unitId) {
       setSelectedUnitId(null);
@@ -268,22 +273,10 @@ function App() {
               <h3>Equipment Information</h3>
             </div>
 
-            <div className="nameplate-placeholder">
-              <div className="nameplate-placeholder-icon">📷</div>
-
-              <div>
-                <strong>Nameplate photo</strong>
-
-                <p>
-                  Camera upload and automatic nameplate reading
-                  will be added next.
-                </p>
-              </div>
-
-              <button type="button" disabled>
-                Add Photo
-              </button>
-            </div>
+            <NameplatePhoto
+              projectId={selectedProject.id}
+              unitId={selectedUnit.id}
+            />
 
             <div className="form-grid unit-detail-form">
               <label>

@@ -17,13 +17,22 @@ function UnitPhotos({ projectId, unitId }) {
 
   useEffect(() => {
     let cancelled = false;
+    const urls = objectUrls.current;
 
     async function loadPhotos() {
       try {
-        const storedPhotos = await getPhotosForUnit(unitId);
+        const storedPhotos = await getPhotosForUnit(
+          unitId,
+          "Site Photo",
+        );
 
         if (!cancelled) {
-          setPhotos(storedPhotos);
+          setPhotos(
+            storedPhotos.map((photo) => ({
+              ...photo,
+              previewUrl: registerPhotoUrl(photo, urls),
+            })),
+          );
         }
       } catch (error) {
         console.error(error);
@@ -39,26 +48,28 @@ function UnitPhotos({ projectId, unitId }) {
     return () => {
       cancelled = true;
 
-      objectUrls.current.forEach((url) => {
+      urls.forEach((url) => {
         URL.revokeObjectURL(url);
       });
 
-      objectUrls.current.clear();
+      urls.clear();
     };
   }, [unitId]);
 
-  function getPhotoUrl(photo) {
-    const existingUrl = objectUrls.current.get(photo.id);
-
-    if (existingUrl) {
-      return existingUrl;
+  useEffect(() => {
+    if (!activePhoto) {
+      return undefined;
     }
 
-    const newUrl = URL.createObjectURL(photo.blob);
-    objectUrls.current.set(photo.id, newUrl);
+    function closeOnEscape(event) {
+      if (event.key === "Escape") {
+        setActivePhoto(null);
+      }
+    }
 
-    return newUrl;
-  }
+    window.addEventListener("keydown", closeOnEscape);
+    return () => window.removeEventListener("keydown", closeOnEscape);
+  }, [activePhoto]);
 
   async function handlePhotoUpload(event) {
     const files = Array.from(event.target.files || []);
@@ -95,10 +106,14 @@ function UnitPhotos({ projectId, unitId }) {
         };
 
         await savePhoto(photo);
+        const previewUrl = registerPhotoUrl(
+          photo,
+          objectUrls.current,
+        );
 
         setPhotos((currentPhotos) => [
           ...currentPhotos,
-          photo,
+          { ...photo, previewUrl },
         ]);
       }
 
@@ -146,7 +161,7 @@ function UnitPhotos({ projectId, unitId }) {
     }
   }
 
-  async function handleCaptionChange(photoId, caption) {
+  function handleCaptionChange(photoId, caption) {
     setPhotos((currentPhotos) =>
       currentPhotos.map((photo) =>
         photo.id === photoId
@@ -154,7 +169,9 @@ function UnitPhotos({ projectId, unitId }) {
           : photo,
       ),
     );
+  }
 
+  async function saveCaption(photoId, caption) {
     try {
       await updatePhotoCaption(photoId, caption);
     } catch (error) {
@@ -223,7 +240,7 @@ function UnitPhotos({ projectId, unitId }) {
                     aria-label="Enlarge photo"
                   >
                     <img
-                      src={getPhotoUrl(photo)}
+                      src={photo.previewUrl}
                       alt={photo.caption || "Unit site photo"}
                       loading="lazy"
                     />
@@ -247,6 +264,9 @@ function UnitPhotos({ projectId, unitId }) {
                         photo.id,
                         event.target.value,
                       )
+                    }
+                    onBlur={(event) =>
+                      saveCaption(photo.id, event.target.value)
                     }
                     placeholder="Add a photo caption..."
                   />
@@ -283,7 +303,7 @@ function UnitPhotos({ projectId, unitId }) {
             onClick={(event) => event.stopPropagation()}
           >
             <img
-              src={getPhotoUrl(activePhoto)}
+              src={activePhoto.previewUrl}
               alt={activePhoto.caption || "Expanded unit photo"}
             />
 
@@ -295,6 +315,18 @@ function UnitPhotos({ projectId, unitId }) {
       )}
     </>
   );
+}
+
+function registerPhotoUrl(photo, urls) {
+  const existingUrl = urls.get(photo.id);
+
+  if (existingUrl) {
+    return existingUrl;
+  }
+
+  const newUrl = URL.createObjectURL(photo.blob);
+  urls.set(photo.id, newUrl);
+  return newUrl;
 }
 
 function formatFileSize(bytes = 0) {

@@ -80,7 +80,7 @@ export async function savePhoto(photo) {
   });
 }
 
-export async function getPhotosForUnit(unitId) {
+export async function getPhotosForUnit(unitId, category = null) {
   const database = await openDatabase();
 
   return new Promise((resolve, reject) => {
@@ -94,9 +94,11 @@ export async function getPhotosForUnit(unitId) {
     const request = unitIndex.getAll(unitId);
 
     request.onsuccess = () => {
-      const photos = request.result.sort((first, second) =>
-        first.createdAt.localeCompare(second.createdAt),
-      );
+      const photos = request.result
+        .filter((photo) => !category || photo.category === category)
+        .sort((first, second) =>
+          first.createdAt.localeCompare(second.createdAt),
+        );
 
       resolve(photos);
     };
