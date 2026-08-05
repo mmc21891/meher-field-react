@@ -5,14 +5,26 @@ import {
   savePhoto,
 } from "./photoDb";
 import { compressImage } from "./imageUtils";
+import { readNameplate } from "./nameplateOcr";
 
 const NAMEPLATE_CATEGORY = "Nameplate Photo";
+const scanFieldLabels = {
+  manufacturer: "Manufacturer",
+  modelNumber: "Model Number",
+  serialNumber: "Serial Number",
+  supplyVoltage: "Supply Voltage",
+  equipmentType: "Equipment Type",
+};
 
-function NameplatePhoto({ projectId, unitId }) {
+function NameplatePhoto({ projectId, unitId, onApplyFields }) {
   const [photo, setPhoto] = useState(null);
   const [isUploading, setIsUploading] = useState(false);
   const [message, setMessage] = useState("");
   const [isOpen, setIsOpen] = useState(false);
+  const [isScanning, setIsScanning] = useState(false);
+  const [scanProgress, setScanProgress] = useState(null);
+  const [scanResult, setScanResult] = useState(null);
+  const [scanFields, setScanFields] = useState({});
   const objectUrls = useRef(new Set());
 
   useEffect(() => {
@@ -100,6 +112,8 @@ function NameplatePhoto({ projectId, unitId }) {
 
       await savePhoto(newPhoto);
       clearPhotoUrls(objectUrls.current);
+      setScanResult(null);
+      setScanFields({});
       setPhoto({
         ...newPhoto,
         previewUrl: createPhotoUrl(
@@ -127,11 +141,77 @@ function NameplatePhoto({ projectId, unitId }) {
       clearPhotoUrls(objectUrls.current);
       setPhoto(null);
       setIsOpen(false);
+      setScanResult(null);
+      setScanFields({});
       setMessage("Nameplate photo removed.");
     } catch (error) {
       console.error(error);
       setMessage("The nameplate photo could not be removed.");
     }
+  }
+
+  async function handleReadNameplate() {
+    if (!photo || isScanning) {
+      return;
+    }
+
+    setIsScanning(true);
+    setScanResult(null);
+    setScanFields({});
+    setScanProgress({ status: "Starting text reader", progress: 0 });
+    setMessage(
+      "Reading the nameplate. The first scan may take a little longer.",
+    );
+
+    try {
+      const result = await readNameplate(photo.blob, setScanProgress);
+
+      if (!result.text) {
+        setMessage(
+          "No readable text was found. Try a closer, straighter photo with less glare.",
+        );
+        return;
+      }
+
+      const detectedCount = Object.values(result.fields).filter(Boolean).length;
+      setScanResult(result);
+      setScanFields(result.fields);
+      setMessage(
+        detectedCount
+          ? `${detectedCount} field${detectedCount === 1 ? "" : "s"} detected. Review before applying.`
+          : "Text was found, but no equipment fields were identified. Review the raw text below.",
+      );
+    } catch (error) {
+      console.error(error);
+      setMessage(
+        "The nameplate could not be read. Check your connection and try again.",
+      );
+    } finally {
+      setIsScanning(false);
+      setScanProgress(null);
+    }
+  }
+
+  function updateScanField(event) {
+    const { name, value } = event.target;
+    setScanFields((currentFields) => ({
+      ...currentFields,
+      [name]: value,
+    }));
+  }
+
+  function applyScanFields() {
+    const fieldsToApply = Object.fromEntries(
+      Object.entries(scanFields).filter(([, value]) => value?.trim()),
+    );
+
+    if (!Object.keys(fieldsToApply).length) {
+      setMessage("Enter or detect at least one value before applying.");
+      return;
+    }
+
+    onApplyFields(fieldsToApply);
+    setMessage("Reviewed nameplate details applied to this equipment unit.");
   }
 
   return (
@@ -176,16 +256,74 @@ function NameplatePhoto({ projectId, unitId }) {
           </label>
 
           {photo && (
-            <button
-              className="nameplate-remove-button"
-              type="button"
-              onClick={handleDelete}
-            >
-              Remove
-            </button>
+            <>
+              <button
+                className="nameplate-read-button"
+                type="button"
+                disabled={isScanning}
+                onClick={handleReadNameplate}
+              >
+                {isScanning ? "Reading..." : "Read Nameplate"}
+              </button>
+
+              <button
+                className="nameplate-remove-button"
+                type="button"
+                disabled={isScanning}
+                onClick={handleDelete}
+              >
+                Remove
+              </button>
+            </>
           )}
         </div>
       </div>
+
+      {scanProgress && (
+        <div className="nameplate-progress" aria-live="polite">
+          <div>
+            <span>{scanProgress.status}</span>
+            <strong>{scanProgress.progress}%</strong>
+          </div>
+          <progress max="100" value={scanProgress.progress} />
+        </div>
+      )}
+
+      {scanResult && (
+        <section className="nameplate-scan-results" aria-live="polite">
+          <div className="nameplate-scan-heading">
+            <div>
+              <strong>Review detected details</strong>
+              <p>Correct any mistakes before applying these values.</p>
+            </div>
+            <span>{scanResult.confidence}% text confidence</span>
+          </div>
+
+          <div className="nameplate-scan-grid">
+            {Object.entries(scanFieldLabels).map(([name, label]) => (
+              <label key={name}>
+                {label}
+                <input
+                  name={name}
+                  value={scanFields[name] || ""}
+                  onChange={updateScanField}
+                  placeholder={`Detected ${label.toLowerCase()}`}
+                />
+              </label>
+            ))}
+          </div>
+
+          <div className="nameplate-scan-footer">
+            <details>
+              <summary>View raw recognized text</summary>
+              <pre>{scanResult.text}</pre>
+            </details>
+            <button type="button" onClick={applyScanFields}>
+              Apply to Equipment
+            </button>
+          </div>
+        </section>
+      )}
 
       {photo && isOpen && (
         <div

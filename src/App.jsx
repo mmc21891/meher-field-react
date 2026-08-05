@@ -185,6 +185,41 @@ function App() {
     saveProjects(updatedProjects);
   }
 
+  function applyDetectedUnitFields(fields) {
+    const allowedFields = [
+      "equipmentType",
+      "manufacturer",
+      "modelNumber",
+      "serialNumber",
+      "supplyVoltage",
+    ];
+    const safeFields = Object.fromEntries(
+      Object.entries(fields).filter(([name]) =>
+        allowedFields.includes(name),
+      ),
+    );
+    const updatedProjects = projects.map((project) => {
+      if (project.id !== selectedProjectId) {
+        return project;
+      }
+
+      return {
+        ...project,
+        units: (project.units || []).map((unit) =>
+          unit.id === selectedUnitId
+            ? {
+                ...unit,
+                ...safeFields,
+                updatedAt: new Date().toISOString(),
+              }
+            : unit,
+        ),
+      };
+    });
+
+    saveProjects(updatedProjects);
+  }
+
   async function deleteUnit(unitId) {
     const confirmed = window.confirm(
       "Remove this equipment unit from the project?",
@@ -276,6 +311,7 @@ function App() {
             <NameplatePhoto
               projectId={selectedProject.id}
               unitId={selectedUnit.id}
+              onApplyFields={applyDetectedUnitFields}
             />
 
             <div className="form-grid unit-detail-form">
