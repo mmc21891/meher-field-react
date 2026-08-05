@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import "./App.css";
+import UnitPhotos from "./UnitPhotos";
 
 const today = new Date().toISOString().split("T")[0];
 
@@ -268,9 +269,7 @@ function App() {
             </div>
 
             <div className="nameplate-placeholder">
-              <div className="nameplate-placeholder-icon">
-                📷
-              </div>
+              <div className="nameplate-placeholder-icon">📷</div>
 
               <div>
                 <strong>Nameplate photo</strong>
@@ -397,6 +396,11 @@ function App() {
               placeholder="Enter deficiencies, recommendations, follow-up items, and other field notes..."
             />
           </section>
+
+          <UnitPhotos
+            projectId={selectedProject.id}
+            unitId={selectedUnit.id}
+          />
 
           <section className="detail-card">
             <div className="detail-card-heading">
@@ -675,9 +679,7 @@ function App() {
 
       <main className="dashboard">
         <section className="welcome">
-          <p className="eyebrow">
-            HVAC Field Reporting
-          </p>
+          <p className="eyebrow">HVAC Field Reporting</p>
 
           <h2>Projects</h2>
 
