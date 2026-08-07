@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import "./App.css";
 import NameplatePhoto from "./NameplatePhoto";
+import ReportPreview from "./ReportPreview";
 import UnitPhotos from "./UnitPhotos";
 import { deletePhotosForUnit } from "./photoDb";
 
@@ -64,6 +65,7 @@ function App() {
   const [projects, setProjects] = useState(loadProjects);
   const [showProjectForm, setShowProjectForm] = useState(false);
   const [showUnitForm, setShowUnitForm] = useState(false);
+  const [showReportPreview, setShowReportPreview] = useState(false);
 
   const [selectedProjectId, setSelectedProjectId] = useState(null);
   const [selectedUnitId, setSelectedUnitId] = useState(null);
@@ -271,6 +273,15 @@ function App() {
     [selectedProject, selectedUnitId],
   );
 
+  if (selectedProject && showReportPreview) {
+    return (
+      <ReportPreview
+        project={selectedProject}
+        onBack={() => setShowReportPreview(false)}
+      />
+    );
+  }
+
   if (selectedProject && selectedUnit) {
     return (
       <div className="app">
@@ -450,7 +461,11 @@ function App() {
                 📷 Site Photos
               </button>
 
-              <button type="button" disabled>
+              <button
+                className="feature-active"
+                type="button"
+                onClick={() => setShowReportPreview(true)}
+              >
                 📄 Report Preview
               </button>
             </div>
@@ -473,6 +488,7 @@ function App() {
               setSelectedProjectId(null);
               setSelectedUnitId(null);
               setShowUnitForm(false);
+              setShowReportPreview(false);
             }}
           >
             ← Back to Projects
@@ -513,6 +529,16 @@ function App() {
               </div>
             </div>
           </section>
+
+          <div className="project-report-action">
+            <button
+              type="button"
+              onClick={() => setShowReportPreview(true)}
+            >
+              <span>📄</span>
+              Preview &amp; Export Report
+            </button>
+          </div>
 
           {!showUnitForm && (
             <button
@@ -900,3 +926,4 @@ function AppHeader() {
 }
 
 export default App;
+
