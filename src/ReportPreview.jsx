@@ -1,6 +1,11 @@
 import { useEffect, useState } from "react";
 import { getPhotosForUnit } from "./photoDb";
 import { generateProjectPdf } from "./reportPdf";
+import {
+  checklistGroups,
+  getChecklistSummary,
+  getEnteredMeasurements,
+} from "./fieldSections";
 
 function ReportPreview({ project, onBack }) {
   const [photosByUnit, setPhotosByUnit] = useState({});
@@ -175,6 +180,9 @@ function ReportPreview({ project, onBack }) {
                   <ReportValue label="Equipment Type" value={unit.equipmentType} />
                 </div>
 
+                <ReportChecklist checklist={unit.checklist} />
+                <ReportMeasurements measurements={unit.measurements} />
+
                 <ReportText title="Work Summary" value={unit.workSummary} />
                 <ReportText title="Notes and Deficiencies" value={unit.notes} />
 
@@ -231,6 +239,64 @@ function ReportText({ title, value }) {
   );
 }
 
+function ReportChecklist({ checklist = {} }) {
+  const summary = getChecklistSummary(checklist);
+
+  return (
+    <section className="report-data-section">
+      <ReportHeading>Equipment Checklist</ReportHeading>
+      <p className="report-section-summary">
+        {summary.completed} of {summary.total} checked · {summary.passed} passed
+        {summary.failed ? ` · ${summary.failed} failed` : ""}
+      </p>
+
+      <div className="report-checklist-table">
+        {checklistGroups.map((group) => (
+          <div key={group.title}>
+            <h4>{group.title}</h4>
+            {group.items.map(([id, label]) => {
+              const item = checklist[id] || {};
+              return (
+                <div className="report-checklist-row" key={id}>
+                  <span>{label}</span>
+                  <strong className={`report-status-${(item.status || "unchecked").toLowerCase().replace("/", "")}`}>
+                    {item.status || "Not checked"}
+                  </strong>
+                  <span>{item.note || "—"}</span>
+                </div>
+              );
+            })}
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function ReportMeasurements({ measurements = {} }) {
+  const entries = getEnteredMeasurements(measurements);
+
+  return (
+    <section className="report-data-section">
+      <ReportHeading>Measurements</ReportHeading>
+      {entries.length ? (
+        <div className="report-measurement-grid">
+          {entries.map((entry) => (
+            <div key={entry.id}>
+              <span>{entry.label}</span>
+              <strong>
+                {entry.value} {entry.unit}
+              </strong>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <p className="report-empty-copy">No measurements recorded.</p>
+      )}
+    </section>
+  );
+}
+
 function formatDate(value) {
   if (!value) {
     return "Not entered";
@@ -247,4 +313,3 @@ function formatDate(value) {
 }
 
 export default ReportPreview;
-

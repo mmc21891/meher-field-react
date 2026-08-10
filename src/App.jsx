@@ -3,6 +3,8 @@ import "./App.css";
 import NameplatePhoto from "./NameplatePhoto";
 import ReportPreview from "./ReportPreview";
 import UnitPhotos from "./UnitPhotos";
+import EquipmentChecklist from "./EquipmentChecklist";
+import Measurements from "./Measurements";
 import { deletePhotosForUnit } from "./photoDb";
 import { cloud, getAppUrl, isCloudConfigured } from "./cloudClient";
 import {
@@ -50,6 +52,8 @@ function normalizeProjects(projects) {
       workSummary: "",
       notes: "",
       photos: [],
+      checklist: {},
+      measurements: {},
       ...unit,
     })),
   }));
@@ -310,6 +314,8 @@ function App() {
       workSummary: "",
       notes: "",
       photos: [],
+      checklist: {},
+      measurements: {},
       createdAt: new Date().toISOString(),
     };
 
@@ -385,6 +391,43 @@ function App() {
               }
             : unit,
         ),
+      };
+    });
+
+    saveProjects(updatedProjects);
+  }
+
+  function updateUnitSection(section, key, value, subkey = null) {
+    const updatedProjects = projects.map((project) => {
+      if (project.id !== selectedProjectId) {
+        return project;
+      }
+
+      return {
+        ...project,
+        updatedAt: new Date().toISOString(),
+        units: (project.units || []).map((unit) => {
+          if (unit.id !== selectedUnitId) {
+            return unit;
+          }
+
+          const currentSection = unit[section] || {};
+          const nextValue = subkey
+            ? {
+                ...(currentSection[key] || {}),
+                [subkey]: value,
+              }
+            : value;
+
+          return {
+            ...unit,
+            [section]: {
+              ...currentSection,
+              [key]: nextValue,
+            },
+            updatedAt: new Date().toISOString(),
+          };
+        }),
       };
     });
 
@@ -576,6 +619,20 @@ function App() {
             </div>
           </section>
 
+          <EquipmentChecklist
+            checklist={selectedUnit.checklist}
+            onChange={(itemId, field, value) =>
+              updateUnitSection("checklist", itemId, value, field)
+            }
+          />
+
+          <Measurements
+            measurements={selectedUnit.measurements}
+            onChange={(field, value) =>
+              updateUnitSection("measurements", field, value)
+            }
+          />
+
           <section className="detail-card">
             <div className="detail-card-heading">
               <p className="eyebrow">Field Report</p>
@@ -613,21 +670,33 @@ function App() {
 
           <section className="detail-card">
             <div className="detail-card-heading">
-              <p className="eyebrow">Coming Next</p>
-              <h3>Unit Sections</h3>
+              <p className="eyebrow">Navigation</p>
+              <h3>Quick Access</h3>
             </div>
 
             <div className="feature-grid">
-              <button type="button" disabled>
-                📋 Checklist
+              <button
+                className="feature-active"
+                type="button"
+                onClick={() =>
+                  document
+                    .getElementById("unit-checklist")
+                    ?.scrollIntoView({ behavior: "smooth" })
+                }
+              >
+                📋 Equipment Checklist
               </button>
 
-              <button type="button" disabled>
+              <button
+                className="feature-active"
+                type="button"
+                onClick={() =>
+                  document
+                    .getElementById("unit-measurements")
+                    ?.scrollIntoView({ behavior: "smooth" })
+                }
+              >
                 📈 Measurements
-              </button>
-
-              <button type="button" disabled>
-                📷 Site Photos
               </button>
 
               <button

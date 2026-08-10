@@ -1,3 +1,9 @@
+import {
+  checklistGroups,
+  getChecklistSummary,
+  getEnteredMeasurements,
+} from "./fieldSections";
+
 const PAGE_WIDTH = 612;
 const MARGIN = 42;
 const CONTENT_WIDTH = PAGE_WIDTH - MARGIN * 2;
@@ -131,6 +137,14 @@ async function drawUnitReport(state, unit, photos) {
   ]);
 
   state.y += 24;
+  drawChecklistReport(state, unit.checklist || {}, unit.tag || "Unit");
+  state.y += 18;
+  drawMeasurementsReport(
+    state,
+    unit.measurements || {},
+    unit.tag || "Unit",
+  );
+  state.y += 18;
   drawTextSection(state, "Work Summary", unit.workSummary);
   state.y += 18;
   drawTextSection(state, "Notes and Deficiencies", unit.notes);
@@ -221,6 +235,108 @@ function drawEquipmentSummary(state, units) {
       x += width;
     });
     state.y += rowHeight;
+  });
+}
+
+function drawChecklistReport(state, checklist, unitLabel) {
+  const { doc } = state;
+  const summary = getChecklistSummary(checklist);
+
+  ensureSpace(state, 70, `${unitLabel} - Checklist`);
+  drawSectionTitle(state, "Equipment Checklist");
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(8.5);
+  doc.setTextColor(...SLATE);
+  doc.text(
+    `${summary.completed} of ${summary.total} checked | ${summary.passed} passed | ${summary.failed} failed`,
+    MARGIN,
+    state.y,
+  );
+  state.y += 12;
+
+  for (const group of checklistGroups) {
+    ensureSpace(state, 48, `${unitLabel} - Checklist`);
+    doc.setFillColor(...NAVY);
+    doc.rect(MARGIN, state.y, CONTENT_WIDTH, 19, "F");
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(8);
+    doc.setTextColor(255, 255, 255);
+    doc.text(pdfText(group.title).toUpperCase(), MARGIN + 8, state.y + 13);
+    state.y += 19;
+
+    for (const [id, label] of group.items) {
+      ensureSpace(state, 29, `${unitLabel} - Checklist`);
+      const item = checklist[id] || {};
+      doc.setFillColor(249, 251, 253);
+      doc.setDrawColor(...BORDER);
+      doc.rect(MARGIN, state.y, CONTENT_WIDTH, 28, "FD");
+      doc.setTextColor(...NAVY);
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(8);
+      doc.text(
+        doc.splitTextToSize(pdfText(label), 242).slice(0, 2),
+        MARGIN + 8,
+        state.y + 11,
+      );
+      doc.setFont("helvetica", "bold");
+      doc.text(pdfText(item.status || "Not checked"), MARGIN + 268, state.y + 17);
+      doc.setFont("helvetica", "normal");
+      doc.setTextColor(...SLATE);
+      doc.text(
+        doc.splitTextToSize(pdfText(item.note || "-"), 185).slice(0, 2),
+        MARGIN + 337,
+        state.y + 11,
+      );
+      state.y += 28;
+    }
+  }
+}
+
+function drawMeasurementsReport(state, measurements, unitLabel) {
+  const { doc } = state;
+  const entries = getEnteredMeasurements(measurements);
+
+  ensureSpace(state, 72, `${unitLabel} - Measurements`);
+  drawSectionTitle(state, "Measurements");
+
+  if (!entries.length) {
+    doc.setFont("helvetica", "italic");
+    doc.setFontSize(9);
+    doc.setTextColor(...SLATE);
+    doc.text("No measurements recorded.", MARGIN, state.y);
+    state.y += 12;
+    return;
+  }
+
+  const gap = 10;
+  const cardWidth = (CONTENT_WIDTH - gap) / 2;
+  const cardHeight = 42;
+
+  entries.forEach((entry, index) => {
+    const column = index % 2;
+    if (column === 0) {
+      ensureSpace(state, cardHeight + gap, `${unitLabel} - Measurements`);
+    }
+
+    const x = MARGIN + column * (cardWidth + gap);
+    doc.setFillColor(...LIGHT);
+    doc.setDrawColor(...BORDER);
+    doc.roundedRect(x, state.y, cardWidth, cardHeight, 4, 4, "FD");
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(7);
+    doc.setTextColor(...SLATE);
+    doc.text(pdfText(entry.label).toUpperCase(), x + 9, state.y + 14);
+    doc.setFontSize(10);
+    doc.setTextColor(...NAVY);
+    doc.text(
+      pdfText(`${entry.value} ${entry.unit}`),
+      x + 9,
+      state.y + 31,
+    );
+
+    if (column === 1 || index === entries.length - 1) {
+      state.y += cardHeight + gap;
+    }
   });
 }
 
@@ -428,4 +544,3 @@ function sanitizeFilename(value) {
     .toLowerCase();
   return `${safe || "field-report"}-field-report`;
 }
-
