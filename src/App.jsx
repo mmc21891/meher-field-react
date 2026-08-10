@@ -1,9 +1,14 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import "./App.css";
 import NameplatePhoto from "./NameplatePhoto";
 import ReportPreview from "./ReportPreview";
 import UnitPhotos from "./UnitPhotos";
 import { deletePhotosForUnit } from "./photoDb";
+import { cloud, getAppUrl, isCloudConfigured } from "./cloudClient";
+import {
+  loadCloudProjects,
+  saveCloudProjects,
+} from "./cloudProjects";
 
 const today = new Date().toISOString().split("T")[0];
 
@@ -36,6 +41,20 @@ const equipmentTypes = [
   "Other",
 ];
 
+function normalizeProjects(projects) {
+  return projects.map((project) => ({
+    ...project,
+    units: (project.units || []).map((unit) => ({
+      location: "",
+      supplyVoltage: "",
+      workSummary: "",
+      notes: "",
+      photos: [],
+      ...unit,
+    })),
+  }));
+}
+
 function loadProjects() {
   try {
     const savedProjects = localStorage.getItem("meher-projects");
@@ -44,17 +63,7 @@ function loadProjects() {
       return [];
     }
 
-    return JSON.parse(savedProjects).map((project) => ({
-      ...project,
-      units: (project.units || []).map((unit) => ({
-        location: "",
-        supplyVoltage: "",
-        workSummary: "",
-        notes: "",
-        photos: [],
-        ...unit,
-      })),
-    }));
+    return normalizeProjects(JSON.parse(savedProjects));
   } catch (error) {
     console.error("Could not load projects:", error);
     return [];
@@ -72,15 +81,175 @@ function App() {
 
   const [projectForm, setProjectForm] = useState(emptyProjectForm);
   const [unitForm, setUnitForm] = useState(emptyUnitForm);
+  const [cloudSession, setCloudSession] = useState(null);
+  const [cloudStatus, setCloudStatus] = useState(
+    isCloudConfigured ? "Checking cloud..." : "Saved on this device",
+  );
+  const [showAccount, setShowAccount] = useState(false);
+  const [accountEmail, setAccountEmail] = useState("");
+  const [accountMessage, setAccountMessage] = useState("");
+  const [isSigningIn, setIsSigningIn] = useState(false);
+  const projectsRef = useRef(projects);
+  const sessionRef = useRef(null);
+  const cloudSaveTimer = useRef(null);
+
+  useEffect(() => {
+    if (!cloud) {
+      return undefined;
+    }
+
+    let active = true;
+
+    async function syncFromCloud(session) {
+      setCloudStatus("Syncing...");
+
+      try {
+        const remote = await loadCloudProjects(session.user.id);
+        const localProjects = projectsRef.current;
+        const localUpdatedAt =
+          localStorage.getItem("meher-projects-updated-at") || "";
+
+        if (!remote) {
+          const now = new Date().toISOString();
+          await saveCloudProjects(session.user.id, localProjects, now);
+          localStorage.setItem("meher-projects-updated-at", now);
+        } else if (remote.updated_at > localUpdatedAt) {
+          const remoteProjects = normalizeProjects(remote.projects || []);
+          projectsRef.current = remoteProjects;
+          setProjects(remoteProjects);
+          localStorage.setItem(
+            "meher-projects",
+            JSON.stringify(remoteProjects),
+          );
+          localStorage.setItem(
+            "meher-projects-updated-at",
+            remote.updated_at,
+          );
+        } else if (localProjects.length || !remote.projects?.length) {
+          const now = new Date().toISOString();
+          await saveCloudProjects(session.user.id, localProjects, now);
+          localStorage.setItem("meher-projects-updated-at", now);
+        }
+
+        setCloudStatus("Cloud synced");
+      } catch (error) {
+        console.error("Cloud sync failed:", error);
+        setCloudStatus("Saved offline");
+      }
+    }
+
+    async function connectCloud() {
+      const { data, error } = await cloud.auth.getSession();
+
+      if (!active) return;
+      if (error) {
+        setCloudStatus("Cloud unavailable");
+        return;
+      }
+
+      sessionRef.current = data.session;
+      setCloudSession(data.session);
+
+      if (data.session) {
+        await syncFromCloud(data.session);
+      } else {
+        setCloudStatus("Sign in to sync");
+      }
+    }
+
+    connectCloud();
+
+    const { data: listener } = cloud.auth.onAuthStateChange(
+      (_event, session) => {
+        sessionRef.current = session;
+        setCloudSession(session);
+
+        if (session) {
+          window.setTimeout(() => syncFromCloud(session), 0);
+        } else {
+          setCloudStatus("Sign in to sync");
+        }
+      },
+    );
+
+    return () => {
+      active = false;
+      listener.subscription.unsubscribe();
+      window.clearTimeout(cloudSaveTimer.current);
+    };
+  }, []);
 
   function saveProjects(updatedProjects) {
+    const updatedAt = new Date().toISOString();
+    projectsRef.current = updatedProjects;
     setProjects(updatedProjects);
 
     localStorage.setItem(
       "meher-projects",
       JSON.stringify(updatedProjects),
     );
+    localStorage.setItem("meher-projects-updated-at", updatedAt);
+
+    if (sessionRef.current) {
+      setCloudStatus("Saving...");
+      window.clearTimeout(cloudSaveTimer.current);
+      cloudSaveTimer.current = window.setTimeout(async () => {
+        try {
+          await saveCloudProjects(
+            sessionRef.current.user.id,
+            projectsRef.current,
+            updatedAt,
+          );
+          setCloudStatus("Cloud synced");
+        } catch (error) {
+          console.error("Cloud save failed:", error);
+          setCloudStatus("Saved offline");
+        }
+      }, 700);
+    }
   }
+
+  async function sendSignInLink(event) {
+    event.preventDefault();
+
+    if (!accountEmail.trim() || !cloud) return;
+
+    setIsSigningIn(true);
+    setAccountMessage("");
+
+    const { error } = await cloud.auth.signInWithOtp({
+      email: accountEmail.trim(),
+      options: { emailRedirectTo: getAppUrl() },
+    });
+
+    setIsSigningIn(false);
+    setAccountMessage(
+      error
+        ? error.message
+        : "Check your email and tap the secure sign-in link.",
+    );
+  }
+
+  async function signOut() {
+    if (!cloud) return;
+    await cloud.auth.signOut();
+    setShowAccount(false);
+    setAccountMessage("");
+  }
+
+  const headerProps = {
+    session: cloudSession,
+    cloudStatus,
+    showAccount,
+    accountEmail,
+    accountMessage,
+    isSigningIn,
+    onOpenAccount: () => setShowAccount(true),
+    onCloseAccount: () => setShowAccount(false),
+    onEmailChange: (event) => setAccountEmail(event.target.value),
+    onSignIn: sendSignInLink,
+    onSignOut: signOut,
+  };
 
   function updateProjectForm(event) {
     const { name, value } = event.target;
@@ -285,7 +454,7 @@ function App() {
   if (selectedProject && selectedUnit) {
     return (
       <div className="app">
-        <AppHeader />
+        <AppHeader {...headerProps} />
 
         <main className="dashboard">
           <button
@@ -478,7 +647,7 @@ function App() {
   if (selectedProject) {
     return (
       <div className="app">
-        <AppHeader />
+        <AppHeader {...headerProps} />
 
         <main className="dashboard">
           <button
@@ -730,7 +899,7 @@ function App() {
 
   return (
     <div className="app">
-      <AppHeader />
+      <AppHeader {...headerProps} />
 
       <main className="dashboard">
         <section className="welcome">
@@ -912,18 +1081,113 @@ function App() {
   );
 }
 
-function AppHeader() {
+function AppHeader({
+  session,
+  cloudStatus,
+  showAccount,
+  accountEmail,
+  accountMessage,
+  isSigningIn,
+  onOpenAccount,
+  onCloseAccount,
+  onEmailChange,
+  onSignIn,
+  onSignOut,
+}) {
   return (
-    <header className="topbar">
-      <div className="brand-badge">MC</div>
+    <>
+      <header className="topbar">
+        <div className="brand-badge">MC</div>
 
-      <div>
-        <h1>Meher Field</h1>
-        <p>Meher Contractors Ltd.</p>
-      </div>
-    </header>
+        <div className="brand-copy">
+          <h1>Meher Field</h1>
+          <p>Meher Contractors Ltd.</p>
+        </div>
+
+        <button
+          className={`cloud-account-button ${session ? "is-synced" : ""}`}
+          type="button"
+          onClick={onOpenAccount}
+        >
+          <span className="cloud-status-dot" />
+          <span>{cloudStatus}</span>
+        </button>
+      </header>
+
+      {showAccount && (
+        <div
+          className="account-overlay"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Cloud account"
+          onClick={onCloseAccount}
+        >
+          <section
+            className="account-card"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <button
+              className="account-close"
+              type="button"
+              onClick={onCloseAccount}
+              aria-label="Close account window"
+            >
+              ×
+            </button>
+
+            <p className="eyebrow">Secure cloud account</p>
+            <h2>{session ? "Your data is protected" : "Use Meher Field anywhere"}</h2>
+
+            {session ? (
+              <>
+                <p>
+                  Signed in as <strong>{session.user.email}</strong>. Projects
+                  and photos sync securely across your devices.
+                </p>
+                <div className="account-sync-status">{cloudStatus}</div>
+                <button
+                  className="account-signout"
+                  type="button"
+                  onClick={onSignOut}
+                >
+                  Sign out
+                </button>
+              </>
+            ) : isCloudConfigured ? (
+              <form onSubmit={onSignIn}>
+                <p>
+                  Enter your email. We will send a secure sign-in link—no
+                  password to remember.
+                </p>
+                <label>
+                  Email address
+                  <input
+                    type="email"
+                    value={accountEmail}
+                    onChange={onEmailChange}
+                    placeholder="you@company.com"
+                    autoComplete="email"
+                    required
+                  />
+                </label>
+                <button type="submit" disabled={isSigningIn}>
+                  {isSigningIn ? "Sending..." : "Email me a sign-in link"}
+                </button>
+                {accountMessage && (
+                  <p className="account-message">{accountMessage}</p>
+                )}
+              </form>
+            ) : (
+              <p>
+                Cloud setup is being connected. Your work is safely saved on
+                this device in the meantime.
+              </p>
+            )}
+          </section>
+        </div>
+      )}
+    </>
   );
 }
 
 export default App;
-
