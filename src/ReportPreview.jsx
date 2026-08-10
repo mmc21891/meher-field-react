@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { getPhotosForUnit } from "./photoDb";
 import { generateProjectPdf } from "./reportPdf";
 import {
-  checklistGroups,
+  getChecklistGroups,
   getChecklistSummary,
   getEnteredMeasurements,
 } from "./fieldSections";
@@ -180,8 +180,14 @@ function ReportPreview({ project, onBack }) {
                   <ReportValue label="Equipment Type" value={unit.equipmentType} />
                 </div>
 
-                <ReportChecklist checklist={unit.checklist} />
-                <ReportMeasurements measurements={unit.measurements} />
+                <ReportChecklist
+                  checklist={unit.checklist}
+                  equipmentType={unit.equipmentType}
+                />
+                <ReportMeasurements
+                  measurements={unit.measurements}
+                  equipmentType={unit.equipmentType}
+                />
 
                 <ReportText title="Work Summary" value={unit.workSummary} />
                 <ReportText title="Notes and Deficiencies" value={unit.notes} />
@@ -239,8 +245,9 @@ function ReportText({ title, value }) {
   );
 }
 
-function ReportChecklist({ checklist = {} }) {
-  const summary = getChecklistSummary(checklist);
+function ReportChecklist({ checklist = {}, equipmentType }) {
+  const checklistGroups = getChecklistGroups(equipmentType);
+  const summary = getChecklistSummary(checklist, equipmentType);
 
   return (
     <section className="report-data-section">
@@ -273,8 +280,8 @@ function ReportChecklist({ checklist = {} }) {
   );
 }
 
-function ReportMeasurements({ measurements = {} }) {
-  const entries = getEnteredMeasurements(measurements);
+function ReportMeasurements({ measurements = {}, equipmentType }) {
+  const entries = getEnteredMeasurements(measurements, equipmentType);
 
   return (
     <section className="report-data-section">

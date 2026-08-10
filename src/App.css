@@ -988,6 +988,34 @@ button:active:not(:disabled) {
   font-weight: 800;
 }
 
+.measurement-heading-actions {
+  display: flex;
+  align-items: flex-end;
+  gap: 10px;
+}
+
+.measurement-heading-actions > label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  color: #607184;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+}
+
+.measurement-heading-actions select {
+  min-width: 64px;
+  padding: 5px 8px;
+  border: 1px solid #cbd5df;
+  border-radius: 7px;
+  background: white;
+  color: #0d1b2a;
+  font-size: 12px;
+  font-weight: 800;
+}
+
 .checklist-alert {
   margin: -5px 0 16px;
   padding: 11px 13px;

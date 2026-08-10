@@ -1,11 +1,12 @@
 import {
-  checklistGroups,
   checklistStatuses,
+  getChecklistGroups,
   getChecklistSummary,
 } from "./fieldSections";
 
-function EquipmentChecklist({ checklist = {}, onChange }) {
-  const summary = getChecklistSummary(checklist);
+function EquipmentChecklist({ checklist = {}, equipmentType, onChange }) {
+  const checklistGroups = getChecklistGroups(equipmentType);
+  const summary = getChecklistSummary(checklist, equipmentType);
 
   return (
     <section className="detail-card" id="unit-checklist">
@@ -72,4 +73,3 @@ function EquipmentChecklist({ checklist = {}, onChange }) {
 }
 
 export default EquipmentChecklist;
-

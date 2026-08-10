@@ -1,10 +1,23 @@
 import {
   getEnteredMeasurements,
-  measurementGroups,
+  getMeasurementGroups,
 } from "./fieldSections";
 
-function Measurements({ measurements = {}, onChange }) {
-  const enteredCount = getEnteredMeasurements(measurements).length;
+function Measurements({
+  measurements = {},
+  equipmentType,
+  onChange,
+  onTemperatureUnitChange,
+}) {
+  const enteredCount = getEnteredMeasurements(
+    measurements,
+    equipmentType,
+  ).length;
+  const measurementGroups = getMeasurementGroups(
+    equipmentType,
+    measurements,
+  );
+  const temperatureUnit = measurements.temperatureUnit || "C";
 
   return (
     <section className="detail-card" id="unit-measurements">
@@ -14,9 +27,23 @@ function Measurements({ measurements = {}, onChange }) {
           <h3>Measurements</h3>
         </div>
 
-        <span className="completion-badge">
-          {enteredCount} recorded
-        </span>
+        <div className="measurement-heading-actions">
+          <label>
+            Temperature
+            <select
+              value={temperatureUnit}
+              onChange={(event) =>
+                onTemperatureUnitChange(event.target.value)
+              }
+            >
+              <option value="C">°C</option>
+              <option value="F">°F</option>
+            </select>
+          </label>
+          <span className="completion-badge">
+            {enteredCount} recorded
+          </span>
+        </div>
       </div>
 
       <div className="measurement-groups">

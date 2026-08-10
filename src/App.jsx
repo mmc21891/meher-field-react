@@ -5,6 +5,7 @@ import ReportPreview from "./ReportPreview";
 import UnitPhotos from "./UnitPhotos";
 import EquipmentChecklist from "./EquipmentChecklist";
 import Measurements from "./Measurements";
+import { convertTemperatureUnit } from "./fieldSections";
 import { deletePhotosForUnit } from "./photoDb";
 import { cloud, getAppUrl, isCloudConfigured } from "./cloudClient";
 import {
@@ -53,7 +54,7 @@ function normalizeProjects(projects) {
       notes: "",
       photos: [],
       checklist: {},
-      measurements: {},
+      measurements: { temperatureUnit: "C" },
       ...unit,
     })),
   }));
@@ -315,7 +316,7 @@ function App() {
       notes: "",
       photos: [],
       checklist: {},
-      measurements: {},
+      measurements: { temperatureUnit: "C" },
       createdAt: new Date().toISOString(),
     };
 
@@ -428,6 +429,31 @@ function App() {
             updatedAt: new Date().toISOString(),
           };
         }),
+      };
+    });
+
+    saveProjects(updatedProjects);
+  }
+
+  function changeTemperatureUnit(nextUnit) {
+    const updatedProjects = projects.map((project) => {
+      if (project.id !== selectedProjectId) return project;
+
+      return {
+        ...project,
+        updatedAt: new Date().toISOString(),
+        units: (project.units || []).map((unit) =>
+          unit.id === selectedUnitId
+            ? {
+                ...unit,
+                measurements: convertTemperatureUnit(
+                  unit.measurements || {},
+                  nextUnit,
+                ),
+                updatedAt: new Date().toISOString(),
+              }
+            : unit,
+        ),
       };
     });
 
@@ -621,6 +647,7 @@ function App() {
 
           <EquipmentChecklist
             checklist={selectedUnit.checklist}
+            equipmentType={selectedUnit.equipmentType}
             onChange={(itemId, field, value) =>
               updateUnitSection("checklist", itemId, value, field)
             }
@@ -628,9 +655,11 @@ function App() {
 
           <Measurements
             measurements={selectedUnit.measurements}
+            equipmentType={selectedUnit.equipmentType}
             onChange={(field, value) =>
               updateUnitSection("measurements", field, value)
             }
+            onTemperatureUnitChange={changeTemperatureUnit}
           />
 
           <section className="detail-card">

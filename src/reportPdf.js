@@ -1,5 +1,5 @@
 import {
-  checklistGroups,
+  getChecklistGroups,
   getChecklistSummary,
   getEnteredMeasurements,
 } from "./fieldSections";
@@ -137,12 +137,18 @@ async function drawUnitReport(state, unit, photos) {
   ]);
 
   state.y += 24;
-  drawChecklistReport(state, unit.checklist || {}, unit.tag || "Unit");
+  drawChecklistReport(
+    state,
+    unit.checklist || {},
+    unit.tag || "Unit",
+    unit.equipmentType,
+  );
   state.y += 18;
   drawMeasurementsReport(
     state,
     unit.measurements || {},
     unit.tag || "Unit",
+    unit.equipmentType,
   );
   state.y += 18;
   drawTextSection(state, "Work Summary", unit.workSummary);
@@ -238,9 +244,10 @@ function drawEquipmentSummary(state, units) {
   });
 }
 
-function drawChecklistReport(state, checklist, unitLabel) {
+function drawChecklistReport(state, checklist, unitLabel, equipmentType) {
   const { doc } = state;
-  const summary = getChecklistSummary(checklist);
+  const checklistGroups = getChecklistGroups(equipmentType);
+  const summary = getChecklistSummary(checklist, equipmentType);
 
   ensureSpace(state, 70, `${unitLabel} - Checklist`);
   drawSectionTitle(state, "Equipment Checklist");
@@ -292,9 +299,14 @@ function drawChecklistReport(state, checklist, unitLabel) {
   }
 }
 
-function drawMeasurementsReport(state, measurements, unitLabel) {
+function drawMeasurementsReport(
+  state,
+  measurements,
+  unitLabel,
+  equipmentType,
+) {
   const { doc } = state;
-  const entries = getEnteredMeasurements(measurements);
+  const entries = getEnteredMeasurements(measurements, equipmentType);
 
   ensureSpace(state, 72, `${unitLabel} - Measurements`);
   drawSectionTitle(state, "Measurements");
