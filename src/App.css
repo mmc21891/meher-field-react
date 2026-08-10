@@ -138,7 +138,8 @@ button:active:not(:disabled) {
 }
 
 .account-card > p:not(.eyebrow),
-.account-card form > p {
+.account-card form > p,
+.account-signin-options > p {
   color: #607184;
   line-height: 1.55;
 }
@@ -194,6 +195,65 @@ button:active:not(:disabled) {
 .account-card form button:disabled {
   opacity: 0.65;
   cursor: wait;
+}
+
+.microsoft-signin {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  width: 100%;
+  padding: 13px 16px;
+  border: 1px solid #8c8c8c;
+  border-radius: 8px;
+  background: white;
+  color: #1f1f1f;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.microsoft-signin:disabled {
+  opacity: 0.65;
+  cursor: wait;
+}
+
+.microsoft-mark {
+  display: grid;
+  grid-template-columns: repeat(2, 9px);
+  gap: 2px;
+}
+
+.microsoft-mark span {
+  width: 9px;
+  height: 9px;
+  background: #f25022;
+}
+
+.microsoft-mark span:nth-child(2) {
+  background: #7fba00;
+}
+
+.microsoft-mark span:nth-child(3) {
+  background: #00a4ef;
+}
+
+.microsoft-mark span:nth-child(4) {
+  background: #ffb900;
+}
+
+.email-signin-backup {
+  margin-top: 18px;
+  border-top: 1px solid #e1e7ed;
+  padding-top: 14px;
+}
+
+.email-signin-backup summary {
+  color: #536477;
+  font-size: 13px;
+  font-weight: 700;
+  text-align: center;
+  cursor: pointer;
 }
 
 .account-signout {

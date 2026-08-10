@@ -235,6 +235,26 @@ function App() {
     );
   }
 
+  async function signInWithMicrosoft() {
+    if (!cloud) return;
+
+    setIsSigningIn(true);
+    setAccountMessage("");
+
+    const { error } = await cloud.auth.signInWithOAuth({
+      provider: "azure",
+      options: {
+        redirectTo: getAppUrl(),
+        scopes: "openid email profile",
+      },
+    });
+
+    if (error) {
+      setIsSigningIn(false);
+      setAccountMessage(error.message);
+    }
+  }
+
   async function signOut() {
     if (!cloud) return;
     await cloud.auth.signOut();
@@ -252,6 +272,7 @@ function App() {
     onOpenAccount: () => setShowAccount(true),
     onCloseAccount: () => setShowAccount(false),
     onEmailChange: (event) => setAccountEmail(event.target.value),
+    onMicrosoftSignIn: signInWithMicrosoft,
     onSignIn: sendSignInLink,
     onSignOut: signOut,
   };
@@ -1189,6 +1210,7 @@ function AppHeader({
   onOpenAccount,
   onCloseAccount,
   onEmailChange,
+  onMicrosoftSignIn,
   onSignIn,
   onSignOut,
 }) {
@@ -1252,29 +1274,50 @@ function AppHeader({
                 </button>
               </>
             ) : isCloudConfigured ? (
-              <form onSubmit={onSignIn}>
+              <div className="account-signin-options">
                 <p>
-                  Enter your email. We will send a secure sign-in link—no
-                  password to remember.
+                  Sign in with your Meher Contractors Microsoft account to
+                  securely sync projects and photos across devices.
                 </p>
-                <label>
-                  Email address
-                  <input
-                    type="email"
-                    value={accountEmail}
-                    onChange={onEmailChange}
-                    placeholder="you@company.com"
-                    autoComplete="email"
-                    required
-                  />
-                </label>
-                <button type="submit" disabled={isSigningIn}>
-                  {isSigningIn ? "Sending..." : "Email me a sign-in link"}
+                <button
+                  className="microsoft-signin"
+                  type="button"
+                  onClick={onMicrosoftSignIn}
+                  disabled={isSigningIn}
+                >
+                  <span className="microsoft-mark" aria-hidden="true">
+                    <span />
+                    <span />
+                    <span />
+                    <span />
+                  </span>
+                  {isSigningIn ? "Opening Microsoft..." : "Continue with Microsoft"}
                 </button>
+
+                <details className="email-signin-backup">
+                  <summary>Use email sign-in instead</summary>
+                  <form onSubmit={onSignIn}>
+                    <label>
+                      Email address
+                      <input
+                        type="email"
+                        value={accountEmail}
+                        onChange={onEmailChange}
+                        placeholder="you@company.com"
+                        autoComplete="email"
+                        required
+                      />
+                    </label>
+                    <button type="submit" disabled={isSigningIn}>
+                      {isSigningIn ? "Sending..." : "Email me a sign-in link"}
+                    </button>
+                  </form>
+                </details>
+
                 {accountMessage && (
                   <p className="account-message">{accountMessage}</p>
                 )}
-              </form>
+              </div>
             ) : (
               <p>
                 Cloud setup is being connected. Your work is safely saved on
